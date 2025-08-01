@@ -7,10 +7,22 @@ use Illuminate\Http\Request;
 
 class BookController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $books = Book::all();
-        return view('books.index', compact('books'));
+        $search = $request->input('search');
+
+        $books = Book::query()
+            ->when($search, function ($query, $search) {
+                $searchTerm = strtolower($search);
+                return $query->where(function($q) use ($searchTerm) {
+                    $q->whereRaw('LOWER(title) LIKE ?', ["%{$searchTerm}%"])
+                      ->orWhereRaw('LOWER(author) LIKE ?', ["%{$searchTerm}%"]);
+                });
+            })
+            ->latest()
+            ->paginate(10);
+
+        return view('books.index', compact('books', 'search'));
     }
 
     public function create()
@@ -21,9 +33,9 @@ class BookController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'title' => 'required',
-            'author' => 'required',
-            'quantity' => 'required|integer',
+            'title' => 'required|string|max:255',
+            'author' => 'required|string|max:255',
+            'quantity' => 'required|integer|min:0',
         ]);
 
         Book::create($request->all());
@@ -37,6 +49,9 @@ class BookController extends Controller
         return view('books.show', compact('book'));
     }
 
+    /**
+     * Show the form for editing the specified resource.
+     */
     public function edit(Book $book)
     {
         return view('books.edit', compact('book'));
@@ -45,9 +60,9 @@ class BookController extends Controller
     public function update(Request $request, Book $book)
     {
         $request->validate([
-            'title' => 'required',
-            'author' => 'required',
-            'quantity' => 'required|integer',
+            'title' => 'required|string|max:255',
+            'author' => 'required|string|max:255',
+            'quantity' => 'required|integer|min:0',
         ]);
 
         $book->update($request->all());
